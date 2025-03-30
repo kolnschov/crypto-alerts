@@ -84,9 +84,6 @@
             {% if sol_alert %}
                 showNotification("SOL: {{ sol_alert }}");
             {% endif %}
-            {% if bnb_alert %}
-                showNotification("BNB: {{ bnb_alert }}");
-            {% endif %}
             {% if xrp_alert %}
                 showNotification("XRP: {{ xrp_alert }}");
             {% endif %}
@@ -100,9 +97,6 @@
             {% endif %}
             {% if sol_exit_alert %}
                 showNotification("SOL: {{ sol_exit_alert }}");
-            {% endif %}
-            {% if bnb_exit_alert %}
-                showNotification("BNB: {{ bnb_exit_alert }}");
             {% endif %}
             {% if xrp_exit_alert %}
                 showNotification("XRP: {{ xrp_exit_alert }}");
@@ -207,34 +201,6 @@
                 {% if sol_alert %}
                     <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
                     <form action="/enter_sol" method="POST">
-                        <button type="submit">Entrei</button>
-                    </form>
-                {% endif %}
-            </td>
-        </tr>
-        <tr>
-            <td {% if bnb_alert %}class="crypto-viable"{% endif %}>BNB/USDT</td>
-            <td>${{ bnb_price }}</td>
-            <td>${{ bnb_support_5min }}</td>
-            <td>${{ bnb_support_1h }}</td>
-            <td>{% if bnb_alert %}<span class="alert">{{ bnb_alert }}</span>{% endif %}</td>
-            <td>
-                {% if bnb_entry_price %}
-                    Entrada: ${{ bnb_entry_price }}<br>
-                    {% if bnb_profit_loss >= 0 %}
-                        <span class="profit">Lucro: +{{ bnb_profit_loss }}%</span>
-                    {% else %}
-                        <span class="loss">Prejuízo: {{ bnb_profit_loss }}%</span>
-                    {% endif %}
-                    {% if bnb_exit_alert %}
-                        <br><span class="alert">{{ bnb_exit_alert }}</span>
-                    {% endif %}
-                {% endif %}
-            </td>
-            <td>
-                {% if bnb_alert %}
-                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
-                    <form action="/enter_bnb" method="POST">
                         <button type="submit">Entrei</button>
                     </form>
                 {% endif %}
