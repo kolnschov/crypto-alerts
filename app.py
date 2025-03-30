@@ -1,18 +1,37 @@
 from flask import Flask, render_template, request, redirect, url_for
 import requests
 import numpy as np
+import json
+import os
 
 app = Flask(__name__)
 
-btc_entry_price = None
-eth_entry_price = None
-sol_entry_price = None
-xrp_entry_price = None
-bnb_entry_price = None
-ada_entry_price = None
-dot_entry_price = None
-link_entry_price = None
-avax_entry_price = None
+TRADE_FILE = "trades.json"
+
+def load_trades():
+    if os.path.exists(TRADE_FILE):
+        with open(TRADE_FILE, 'r') as f:
+            return json.load(f)
+    return {
+        "btc_entry_price": None, "eth_entry_price": None, "sol_entry_price": None,
+        "xrp_entry_price": None, "bnb_entry_price": None, "ada_entry_price": None,
+        "dot_entry_price": None, "link_entry_price": None, "avax_entry_price": None
+    }
+
+def save_trades(trades):
+    with open(TRADE_FILE, 'w') as f:
+        json.dump(trades, f)
+
+trades = load_trades()
+btc_entry_price = trades["btc_entry_price"]
+eth_entry_price = trades["eth_entry_price"]
+sol_entry_price = trades["sol_entry_price"]
+xrp_entry_price = trades["xrp_entry_price"]
+bnb_entry_price = trades["bnb_entry_price"]
+ada_entry_price = trades["ada_entry_price"]
+dot_entry_price = trades["dot_entry_price"]
+link_entry_price = trades["link_entry_price"]
+avax_entry_price = trades["avax_entry_price"]
 
 def get_price(pair):
     url = f"https://api.binance.com/api/v3/ticker/price?symbol={pair}"
@@ -310,55 +329,74 @@ def home():
 def enter_btc_trade():
     global btc_entry_price
     btc_entry_price = get_price("BTCUSDT")
+    trades["btc_entry_price"] = btc_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_eth', methods=['POST'])
 def enter_eth_trade():
     global eth_entry_price
     eth_entry_price = get_price("ETHUSDT")
+    trades["eth_entry_price"] = eth_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_sol', methods=['POST'])
 def enter_sol_trade():
     global sol_entry_price
     sol_entry_price = get_price("SOLUSDT")
+    trades["sol_entry_price"] = sol_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_xrp', methods=['POST'])
 def enter_xrp_trade():
     global xrp_entry_price
     xrp_entry_price = get_price("XRPUSDT")
+    trades["xrp_entry_price"] = xrp_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_bnb', methods=['POST'])
 def enter_bnb_trade():
     global bnb_entry_price
     bnb_entry_price = get_price("BNBUSDT")
+    trades["bnb_entry_price"] = bnb_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_ada', methods=['POST'])
 def enter_ada_trade():
     global ada_entry_price
     ada_entry_price = get_price("ADAUSDT")
+    trades["ada_entry_price"] = ada_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_dot', methods=['POST'])
 def enter_dot_trade():
     global dot_entry_price
     dot_entry_price = get_price("DOTUSDT")
+    trades["dot_entry_price"] = dot_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_link', methods=['POST'])
 def enter_link_trade():
     global link_entry_price
     link_entry_price = get_price("LINKUSDT")
+    trades["link_entry_price"] = link_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 @app.route('/enter_avax', methods=['POST'])
 def enter_avax_trade():
     global avax_entry_price
     avax_entry_price = get_price("AVAXUSDT")
+    trades["avax_entry_price"] = avax_entry_price
+    save_trades(trades)
     return redirect(url_for('home'))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)  # Corrigido com indentação adequada
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
