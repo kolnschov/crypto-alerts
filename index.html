@@ -120,7 +120,6 @@
             <th>Criptomoeda</th>
             <th>Preço Atual (USDT)</th>
             <th>Suporte 5min (USDT)</th>
-            <th>Suporte 1h (USDT)</th>
             <th>Alerta</th>
             <th>Status</th>
             <th>Ação</th>
@@ -129,7 +128,6 @@
             <td {% if btc_alert %}class="crypto-viable"{% endif %}>BTC/USDT</td>
             <td>${{ btc_price }}</td>
             <td>${{ btc_support_5min }}</td>
-            <td>${{ btc_support_1h }}</td>
             <td>{% if btc_alert %}<span class="alert">{{ btc_alert }}</span>{% endif %}</td>
             <td>
                 {% if btc_entry_price %}
@@ -157,7 +155,6 @@
             <td {% if eth_alert %}class="crypto-viable"{% endif %}>ETH/USDT</td>
             <td>${{ eth_price }}</td>
             <td>${{ eth_support_5min }}</td>
-            <td>${{ eth_support_1h }}</td>
             <td>{% if eth_alert %}<span class="alert">{{ eth_alert }}</span>{% endif %}</td>
             <td>
                 {% if eth_entry_price %}
@@ -185,7 +182,6 @@
             <td {% if sol_alert %}class="crypto-viable"{% endif %}>SOL/USDT</td>
             <td>${{ sol_price }}</td>
             <td>${{ sol_support_5min }}</td>
-            <td>${{ sol_support_1h }}</td>
             <td>{% if sol_alert %}<span class="alert">{{ sol_alert }}</span>{% endif %}</td>
             <td>
                 {% if sol_entry_price %}
@@ -213,7 +209,6 @@
             <td {% if xrp_alert %}class="crypto-viable"{% endif %}>XRP/USDT</td>
             <td>${{ xrp_price }}</td>
             <td>${{ xrp_support_5min }}</td>
-            <td>${{ xrp_support_1h }}</td>
             <td>{% if xrp_alert %}<span class="alert">{{ xrp_alert }}</span>{% endif %}</td>
             <td>
                 {% if xrp_entry_price %}
