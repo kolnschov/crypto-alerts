@@ -46,13 +46,13 @@ def get_price(pair):
         response.raise_for_status()
         data = response.json()
         price = float(data["result"][pair]["c"][0])  # Último preço de fechamento
-        print(f"{pair} Price fetched: {price}")
+        print(f"{time.strftime('%H:%M:%S')} - {pair} Price fetched: {price}")
         return price
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {pair} price: {str(e)}")
+        print(f"{time.strftime('%H:%M:%S')} - Error fetching {pair} price: {str(e)}")
         return 0
     except (KeyError, ValueError) as e:
-        print(f"Error parsing {pair} price data: {str(e)}")
+        print(f"{time.strftime('%H:%M:%S')} - Error parsing {pair} price data: {str(e)}")
         return 0
 
 def get_historical_data(pair, interval=5, since=None):
@@ -69,32 +69,32 @@ def get_historical_data(pair, interval=5, since=None):
         closes = [float(candle[4]) for candle in data]
         volumes = [float(candle[5]) for candle in data]
         support = min(lows)
-        print(f"{pair} {interval}min Support fetched: {support}")
+        print(f"{time.strftime('%H:%M:%S')} - {pair} {interval}min Support fetched: {support}")
         return {"lows": lows, "closes": closes, "volumes": volumes, "support": support}
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {pair} {interval}min historical data: {str(e)}")
+        print(f"{time.strftime('%H:%M:%S')} - Error fetching {pair} {interval}min historical data: {str(e)}")
         return {"lows": [0], "closes": [0], "volumes": [0], "support": 0}
     except (KeyError, ValueError) as e:
-        print(f"Error parsing {pair} {interval}min historical data: {str(e)}")
+        print(f"{time.strftime('%H:%M:%S')} - Error parsing {pair} {interval}min historical data: {str(e)}")
         return {"lows": [0], "closes": [0], "volumes": [0], "support": 0}
 
 def get_all_prices_and_supports():
     cached_supports_5min = load_support_cache(SUPPORT_FILE_5MIN, SUPPORT_TIMEOUT_5MIN)
     cached_supports_1h = load_support_cache(SUPPORT_FILE_1H, SUPPORT_TIMEOUT_1H)
 
-    pairs = ["XBTUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT"]  # BNB removido
+    pairs = ["XBTUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT"]
     prices = {}
     supports_5min = {}
     supports_1h = {}
 
-    # Preços em tempo real
+    # Preços em tempo real (sem cache)
     for pair in pairs:
         prices[pair] = get_price(pair)
 
     # Suportes 5min (24h de velas de 5min)
     if cached_supports_5min:
         supports_5min = cached_supports_5min
-        print("Using cached supports (5min):", supports_5min)
+        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (5min):", supports_5min)
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=5)
@@ -104,7 +104,7 @@ def get_all_prices_and_supports():
     # Suportes 1h (7 dias de velas de 1h)
     if cached_supports_1h:
         supports_1h = cached_supports_1h
-        print("Using cached supports (1h):", supports_1h)
+        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (1h):", supports_1h)
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=60)
@@ -157,11 +157,11 @@ def home():
     if (btc_price and btc_support_5min and btc_price <= btc_support_5min * 1.005 and 
         btc_rsi_5min < 30 and btc_current_volume_5min > btc_volume_avg_5min):
         btc_alert = "Alerta de entrada de 5 minutos"
-        print(f"BTC 5min Alert: Price={btc_price}, Support={btc_support_5min}, RSI={btc_rsi_5min}, Volume={btc_current_volume_5min}, Avg={btc_volume_avg_5min}")
+        print(f"{time.strftime('%H:%M:%S')} - BTC 5min Alert: Price={btc_price}, Support={btc_support_5min}, RSI={btc_rsi_5min}, Volume={btc_current_volume_5min}, Avg={btc_volume_avg_5min}")
     elif (btc_price and btc_support_1h and btc_price <= btc_support_1h * 1.005 and 
           btc_rsi_1h < 30 and btc_current_volume_1h > btc_volume_avg_1h):
         btc_alert = "Alerta de entrada de 1 hora"
-        print(f"BTC 1h Alert: Price={btc_price}, Support={btc_support_1h}, RSI={btc_rsi_1h}, Volume={btc_current_volume_1h}, Avg={btc_volume_avg_1h}")
+        print(f"{time.strftime('%H:%M:%S')} - BTC 1h Alert: Price={btc_price}, Support={btc_support_1h}, RSI={btc_rsi_1h}, Volume={btc_current_volume_1h}, Avg={btc_volume_avg_1h}")
 
     if btc_entry_price and btc_price:
         btc_profit_loss = ((btc_price - btc_entry_price) / btc_entry_price) * 100
@@ -192,11 +192,11 @@ def home():
     if (eth_price and eth_support_5min and eth_price <= eth_support_5min * 1.005 and 
         eth_rsi_5min < 30 and eth_current_volume_5min > eth_volume_avg_5min):
         eth_alert = "Alerta de entrada de 5 minutos"
-        print(f"ETH 5min Alert: Price={eth_price}, Support={eth_support_5min}, RSI={eth_rsi_5min}, Volume={eth_current_volume_5min}, Avg={eth_volume_avg_5min}")
+        print(f"{time.strftime('%H:%M:%S')} - ETH 5min Alert: Price={eth_price}, Support={eth_support_5min}, RSI={eth_rsi_5min}, Volume={eth_current_volume_5min}, Avg={eth_volume_avg_5min}")
     elif (eth_price and eth_support_1h and eth_price <= eth_support_1h * 1.005 and 
           eth_rsi_1h < 30 and eth_current_volume_1h > eth_volume_avg_1h):
         eth_alert = "Alerta de entrada de 1 hora"
-        print(f"ETH 1h Alert: Price={eth_price}, Support={eth_support_1h}, RSI={eth_rsi_1h}, Volume={eth_current_volume_1h}, Avg={eth_volume_avg_1h}")
+        print(f"{time.strftime('%H:%M:%S')} - ETH 1h Alert: Price={eth_price}, Support={eth_support_1h}, RSI={eth_rsi_1h}, Volume={eth_current_volume_1h}, Avg={eth_volume_avg_1h}")
 
     if eth_entry_price and eth_price:
         eth_profit_loss = ((eth_price - eth_entry_price) / eth_entry_price) * 100
@@ -227,11 +227,11 @@ def home():
     if (sol_price and sol_support_5min and sol_price <= sol_support_5min * 1.005 and 
         sol_rsi_5min < 30 and sol_current_volume_5min > sol_volume_avg_5min):
         sol_alert = "Alerta de entrada de 5 minutos"
-        print(f"SOL 5min Alert: Price={sol_price}, Support={sol_support_5min}, RSI={sol_rsi_5min}, Volume={sol_current_volume_5min}, Avg={sol_volume_avg_5min}")
+        print(f"{time.strftime('%H:%M:%S')} - SOL 5min Alert: Price={sol_price}, Support={sol_support_5min}, RSI={sol_rsi_5min}, Volume={sol_current_volume_5min}, Avg={sol_volume_avg_5min}")
     elif (sol_price and sol_support_1h and sol_price <= sol_support_1h * 1.005 and 
           sol_rsi_1h < 30 and sol_current_volume_1h > sol_volume_avg_1h):
         sol_alert = "Alerta de entrada de 1 hora"
-        print(f"SOL 1h Alert: Price={sol_price}, Support={sol_support_1h}, RSI={sol_rsi_1h}, Volume={sol_current_volume_1h}, Avg={sol_volume_avg_1h}")
+        print(f"{time.strftime('%H:%M:%S')} - SOL 1h Alert: Price={sol_price}, Support={sol_support_1h}, RSI={sol_rsi_1h}, Volume={sol_current_volume_1h}, Avg={sol_volume_avg_1h}")
 
     if sol_entry_price and sol_price:
         sol_profit_loss = ((sol_price - sol_entry_price) / sol_entry_price) * 100
@@ -262,11 +262,11 @@ def home():
     if (xrp_price and xrp_support_5min and xrp_price <= xrp_support_5min * 1.005 and 
         xrp_rsi_5min < 30 and xrp_current_volume_5min > xrp_volume_avg_5min):
         xrp_alert = "Alerta de entrada de 5 minutos"
-        print(f"XRP 5min Alert: Price={xrp_price}, Support={xrp_support_5min}, RSI={xrp_rsi_5min}, Volume={xrp_current_volume_5min}, Avg={xrp_volume_avg_5min}")
+        print(f"{time.strftime('%H:%M:%S')} - XRP 5min Alert: Price={xrp_price}, Support={xrp_support_5min}, RSI={xrp_rsi_5min}, Volume={xrp_current_volume_5min}, Avg={xrp_volume_avg_5min}")
     elif (xrp_price and xrp_support_1h and xrp_price <= xrp_support_1h * 1.005 and 
           xrp_rsi_1h < 30 and xrp_current_volume_1h > xrp_volume_avg_1h):
         xrp_alert = "Alerta de entrada de 1 hora"
-        print(f"XRP 1h Alert: Price={xrp_price}, Support={xrp_support_1h}, RSI={xrp_rsi_1h}, Volume={xrp_current_volume_1h}, Avg={xrp_volume_avg_1h}")
+        print(f"{time.strftime('%H:%M:%S')} - XRP 1h Alert: Price={xrp_price}, Support={xrp_support_1h}, RSI={xrp_rsi_1h}, Volume={xrp_current_volume_1h}, Avg={xrp_volume_avg_1h}")
 
     if xrp_entry_price and xrp_price:
         xrp_profit_loss = ((xrp_price - xrp_entry_price) / xrp_entry_price) * 100
@@ -285,45 +285,4 @@ def home():
                            eth_entry_price=eth_entry_price, eth_exit_alert=eth_exit_alert, eth_profit_loss=eth_profit_loss,
                            sol_price=sol_price, sol_support_5min=sol_support_5min, sol_support_1h=sol_support_1h, sol_alert=sol_alert, 
                            sol_entry_price=sol_entry_price, sol_exit_alert=sol_exit_alert, sol_profit_loss=sol_profit_loss,
-                           xrp_price=xrp_price, xrp_support_5min=xrp_support_5min, xrp_support_1h=xrp_support_1h, xrp_alert=xrp_alert, 
-                           xrp_entry_price=xrp_entry_price, xrp_exit_alert=xrp_exit_alert, xrp_profit_loss=xrp_profit_loss)
-
-@app.route('/enter_btc', methods=['POST'])
-def enter_btc_trade():
-    global btc_entry_price
-    prices, _, _ = get_all_prices_and_supports()
-    btc_entry_price = prices["XBTUSDT"]
-    trades["btc_entry_price"] = btc_entry_price
-    save_trades(trades)
-    return redirect(url_for('home'))
-
-@app.route('/enter_eth', methods=['POST'])
-def enter_eth_trade():
-    global eth_entry_price
-    prices, _, _ = get_all_prices_and_supports()
-    eth_entry_price = prices["ETHUSDT"]
-    trades["eth_entry_price"] = eth_entry_price
-    save_trades(trades)
-    return redirect(url_for('home'))
-
-@app.route('/enter_sol', methods=['POST'])
-def enter_sol_trade():
-    global sol_entry_price
-    prices, _, _ = get_all_prices_and_supports()
-    sol_entry_price = prices["SOLUSDT"]
-    trades["sol_entry_price"] = sol_entry_price
-    save_trades(trades)
-    return redirect(url_for('home'))
-
-@app.route('/enter_xrp', methods=['POST'])
-def enter_xrp_trade():
-    global xrp_entry_price
-    prices, _, _ = get_all_prices_and_supports()
-    xrp_entry_price = prices["XRPUSDT"]
-    trades["xrp_entry_price"] = xrp_entry_price
-    save_trades(trades)
-    return redirect(url_for('home'))
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+                           xrp_price=xrp_price, xrp_suppor

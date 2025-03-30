@@ -2,6 +2,9 @@
 <html lang="pt-BR">
 <head>
     <title>Alerta de Cripto</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -66,8 +69,8 @@
     </style>
     <script>
         setInterval(function() {
-            window.location.reload();
-        }, 5000);  // Atualiza a cada 5 segundos
+            window.location.reload(true); // Força recarga sem cache
+        }, 10000);  // Atualiza a cada 10 segundos
 
         window.onload = function() {
             if (Notification.permission !== "granted" && Notification.permission !== "denied") {
