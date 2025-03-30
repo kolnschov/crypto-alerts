@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <title>Alerta de Cripto</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .crypto-viable {
+            color: red;
+            font-weight: bold;
+        }
+        .profit {
+            color: green;
+            font-weight: bold;
+        }
+        .loss {
+            color: red;
+            font-weight: bold;
+        }
+        .alert {
+            color: red;
+            font-weight: bold;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        img.buy-now {
+            width: 120px;
+            vertical-align: middle;
+        }
+    </style>
+    <script>
+        setInterval(function() {
+            window.location.reload();
+        }, 30000);
+
+        window.onload = function() {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+        };
+
+        function showNotification(message) {
+            if (Notification.permission === "granted") {
+                new Notification("Alerta de Cripto", { body: message });
+            }
+        }
+
+        {% if btc_exit_alert %}
+            showNotification("BTC: {{ btc_exit_alert }}");
+        {% endif %}
+        {% if eth_exit_alert %}
+            showNotification("ETH: {{ eth_exit_alert }}");
+        {% endif %}
+        {% if sol_exit_alert %}
+            showNotification("SOL: {{ sol_exit_alert }}");
+        {% endif %}
+        {% if xrp_exit_alert %}
+            showNotification("XRP: {{ xrp_exit_alert }}");
+        {% endif %}
+        {% if bnb_exit_alert %}
+            showNotification("BNB: {{ bnb_exit_alert }}");
+        {% endif %}
+        {% if ada_exit_alert %}
+            showNotification("ADA: {{ ada_exit_alert }}");
+        {% endif %}
+        {% if dot_exit_alert %}
+            showNotification("DOT: {{ dot_exit_alert }}");
+        {% endif %}
+        {% if link_exit_alert %}
+            showNotification("LINK: {{ link_exit_alert }}");
+        {% endif %}
+        {% if avax_exit_alert %}
+            showNotification("AVAX: {{ avax_exit_alert }}");
+        {% endif %}
+    </script>
+</head>
+<body>
+    <h1>Monitor de Criptomoedas</h1>
+    <table>
+        <tr>
+            <th>Criptomoeda</th>
+            <th>Preço Atual (USDT)</th>
+            <th>Suporte (USDT)</th>
+            <th>Status</th>
+            <th>Ação</th>
+        </tr>
+        <tr>
+            <td {% if btc_alert %}class="crypto-viable"{% endif %}>BTC/USDT</td>
+            <td>${{ btc_price }}</td>
+            <td>${{ btc_support }}</td>
+            <td>
+                {% if btc_alert %}
+                    <span class="alert">{{ btc_alert }}</span>
+                {% endif %}
+                {% if btc_entry_price %}
+                    Entrada: ${{ btc_entry_price }}<br>
+                    {% if btc_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ btc_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ btc_profit_loss }}%</span>
+                    {% endif %}
+                    {% if btc_exit_alert %}
+                        <br><span class="alert">{{ btc_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if btc_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_btc" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if eth_alert %}class="crypto-viable"{% endif %}>ETH/USDT</td>
+            <td>${{ eth_price }}</td>
+            <td>${{ eth_support }}</td>
+            <td>
+                {% if eth_alert %}
+                    <span class="alert">{{ eth_alert }}</span>
+                {% endif %}
+                {% if eth_entry_price %}
+                    Entrada: ${{ eth_entry_price }}<br>
+                    {% if eth_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ eth_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ eth_profit_loss }}%</span>
+                    {% endif %}
+                    {% if eth_exit_alert %}
+                        <br><span class="alert">{{ eth_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if eth_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_eth" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if sol_alert %}class="crypto-viable"{% endif %}>SOL/USDT</td>
+            <td>${{ sol_price }}</td>
+            <td>${{ sol_support }}</td>
+            <td>
+                {% if sol_alert %}
+                    <span class="alert">{{ sol_alert }}</span>
+                {% endif %}
+                {% if sol_entry_price %}
+                    Entrada: ${{ sol_entry_price }}<br>
+                    {% if sol_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ sol_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ sol_profit_loss }}%</span>
+                    {% endif %}
+                    {% if sol_exit_alert %}
+                        <br><span class="alert">{{ sol_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if sol_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_sol" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if xrp_alert %}class="crypto-viable"{% endif %}>XRP/USDT</td>
+            <td>${{ xrp_price }}</td>
+            <td>${{ xrp_support }}</td>
+            <td>
+                {% if xrp_alert %}
+                    <span class="alert">{{ xrp_alert }}</span>
+                {% endif %}
+                {% if xrp_entry_price %}
+                    Entrada: ${{ xrp_entry_price }}<br>
+                    {% if xrp_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ xrp_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ xrp_profit_loss }}%</span>
+                    {% endif %}
+                    {% if xrp_exit_alert %}
+                        <br><span class="alert">{{ xrp_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if xrp_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_xrp" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if bnb_alert %}class="crypto-viable"{% endif %}>BNB/USDT</td>
+            <td>${{ bnb_price }}</td>
+            <td>${{ bnb_support }}</td>
+            <td>
+                {% if bnb_alert %}
+                    <span class="alert">{{ bnb_alert }}</span>
+                {% endif %}
+                {% if bnb_entry_price %}
+                    Entrada: ${{ bnb_entry_price }}<br>
+                    {% if bnb_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ bnb_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ bnb_profit_loss }}%</span>
+                    {% endif %}
+                    {% if bnb_exit_alert %}
+                        <br><span class="alert">{{ bnb_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if bnb_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_bnb" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if ada_alert %}class="crypto-viable"{% endif %}>ADA/USDT</td>
+            <td>${{ ada_price }}</td>
+            <td>${{ ada_support }}</td>
+            <td>
+                {% if ada_alert %}
+                    <span class="alert">{{ ada_alert }}</span>
+                {% endif %}
+                {% if ada_entry_price %}
+                    Entrada: ${{ ada_entry_price }}<br>
+                    {% if ada_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ ada_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ ada_profit_loss }}%</span>
+                    {% endif %}
+                    {% if ada_exit_alert %}
+                        <br><span class="alert">{{ ada_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if ada_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_ada" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if dot_alert %}class="crypto-viable"{% endif %}>DOT/USDT</td>
+            <td>${{ dot_price }}</td>
+            <td>${{ dot_support }}</td>
+            <td>
+                {% if dot_alert %}
+                    <span class="alert">{{ dot_alert }}</span>
+                {% endif %}
+                {% if dot_entry_price %}
+                    Entrada: ${{ dot_entry_price }}<br>
+                    {% if dot_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ dot_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ dot_profit_loss }}%</span>
+                    {% endif %}
+                    {% if dot_exit_alert %}
+                        <br><span class="alert">{{ dot_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if dot_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_dot" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if link_alert %}class="crypto-viable"{% endif %}>LINK/USDT</td>
+            <td>${{ link_price }}</td>
+            <td>${{ link_support }}</td>
+            <td>
+                {% if link_alert %}
+                    <span class="alert">{{ link_alert }}</span>
+                {% endif %}
+                {% if link_entry_price %}
+                    Entrada: ${{ link_entry_price }}<br>
+                    {% if link_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ link_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ link_profit_loss }}%</span>
+                    {% endif %}
+                    {% if link_exit_alert %}
+                        <br><span class="alert">{{ link_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if link_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_link" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td {% if avax_alert %}class="crypto-viable"{% endif %}>AVAX/USDT</td>
+            <td>${{ avax_price }}</td>
+            <td>${{ avax_support }}</td>
+            <td>
+                {% if avax_alert %}
+                    <span class="alert">{{ avax_alert }}</span>
+                {% endif %}
+                {% if avax_entry_price %}
+                    Entrada: ${{ avax_entry_price }}<br>
+                    {% if avax_profit_loss >= 0 %}
+                        <span class="profit">Lucro: +{{ avax_profit_loss }}%</span>
+                    {% else %}
+                        <span class="loss">Prejuízo: {{ avax_profit_loss }}%</span>
+                    {% endif %}
+                    {% if avax_exit_alert %}
+                        <br><span class="alert">{{ avax_exit_alert }}</span>
+                    {% endif %}
+                {% endif %}
+            </td>
+            <td>
+                {% if avax_alert %}
+                    <img src="https://media.tenor.com/AAjOmmZtFisAAAAi/buy-now.gif" alt="Comprar Agora" class="buy-now">
+                    <form action="/enter_avax" method="POST">
+                        <button type="submit">Entrei</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
