@@ -73,6 +73,40 @@
             if (Notification.permission !== "granted" && Notification.permission !== "denied") {
                 Notification.requestPermission();
             }
+
+            // Notificações para entradas de compra
+            {% if btc_alert %}
+                showNotification("BTC: {{ btc_alert }}");
+            {% endif %}
+            {% if eth_alert %}
+                showNotification("ETH: {{ eth_alert }}");
+            {% endif %}
+            {% if sol_alert %}
+                showNotification("SOL: {{ sol_alert }}");
+            {% endif %}
+            {% if bnb_alert %}
+                showNotification("BNB: {{ bnb_alert }}");
+            {% endif %}
+            {% if xrp_alert %}
+                showNotification("XRP: {{ xrp_alert }}");
+            {% endif %}
+
+            // Notificações para saídas de lucro
+            {% if btc_exit_alert %}
+                showNotification("BTC: {{ btc_exit_alert }}");
+            {% endif %}
+            {% if eth_exit_alert %}
+                showNotification("ETH: {{ eth_exit_alert }}");
+            {% endif %}
+            {% if sol_exit_alert %}
+                showNotification("SOL: {{ sol_exit_alert }}");
+            {% endif %}
+            {% if bnb_exit_alert %}
+                showNotification("BNB: {{ bnb_exit_alert }}");
+            {% endif %}
+            {% if xrp_exit_alert %}
+                showNotification("XRP: {{ xrp_exit_alert }}");
+            {% endif %}
         };
 
         function showNotification(message) {
@@ -80,22 +114,6 @@
                 new Notification("Alerta de Cripto", { body: message });
             }
         }
-
-        {% if btc_exit_alert %}
-            showNotification("BTC: {{ btc_exit_alert }}");
-        {% endif %}
-        {% if eth_exit_alert %}
-            showNotification("ETH: {{ eth_exit_alert }}");
-        {% endif %}
-        {% if sol_exit_alert %}
-            showNotification("SOL: {{ sol_exit_alert }}");
-        {% endif %}
-        {% if bnb_exit_alert %}
-            showNotification("BNB: {{ bnb_exit_alert }}");
-        {% endif %}
-        {% if xrp_exit_alert %}
-            showNotification("XRP: {{ xrp_exit_alert }}");
-        {% endif %}
     </script>
 </head>
 <body>
