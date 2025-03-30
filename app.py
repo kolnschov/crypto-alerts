@@ -35,9 +35,10 @@ avax_entry_price = trades["avax_entry_price"]
 
 def get_price(pair):
     url = f"https://api.binance.com/api/v3/ticker/price?symbol={pair}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/134.0.0.0"}  # Simula um navegador
     try:
-        response = requests.get(url, timeout=10)  # Timeout de 10 segundos
-        response.raise_for_status()  # Levanta exceção para erros HTTP
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
         data = response.json()
         price = float(data["price"])
         print(f"{pair} Price fetched: {price}")
@@ -51,8 +52,9 @@ def get_price(pair):
 
 def get_historical_data(pair, interval="5m", limit=200):
     url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval={interval}&limit={limit}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/134.0.0.0"}  # Simula um navegador
     try:
-        response = requests.get(url, timeout=10)  # Timeout de 10 segundos
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
         lows = [float(candle[3]) for candle in data]
