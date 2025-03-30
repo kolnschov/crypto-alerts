@@ -36,21 +36,36 @@ avax_entry_price = trades["avax_entry_price"]
 def get_price(pair):
     url = f"https://api.binance.com/api/v3/ticker/price?symbol={pair}"
     try:
-        response = requests.get(url)
-        return float(response.json()["price"])
-    except:
+        response = requests.get(url, timeout=10)  # Timeout de 10 segundos
+        response.raise_for_status()  # Levanta exceção para erros HTTP
+        data = response.json()
+        price = float(data["price"])
+        print(f"{pair} Price fetched: {price}")
+        return price
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching {pair} price: {str(e)}")
+        return 0
+    except (KeyError, ValueError) as e:
+        print(f"Error parsing {pair} price data: {str(e)}")
         return 0
 
 def get_historical_data(pair, interval="5m", limit=200):
     url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval={interval}&limit={limit}"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)  # Timeout de 10 segundos
+        response.raise_for_status()
         data = response.json()
         lows = [float(candle[3]) for candle in data]
         closes = [float(candle[4]) for candle in data]
         volumes = [float(candle[5]) for candle in data]
+        support = min(lows)
+        print(f"{pair} Support fetched: {support}")
         return {"lows": lows, "closes": closes, "volumes": volumes}
-    except:
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching {pair} historical data: {str(e)}")
+        return {"lows": [0], "closes": [0], "volumes": [0]}
+    except (KeyError, ValueError) as e:
+        print(f"Error parsing {pair} historical data: {str(e)}")
         return {"lows": [0], "closes": [0], "volumes": [0]}
 
 def calculate_rsi(closes, period=14):
