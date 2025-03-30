@@ -33,25 +33,35 @@ dot_entry_price = trades["dot_entry_price"]
 link_entry_price = trades["link_entry_price"]
 avax_entry_price = trades["avax_entry_price"]
 
-def get_price(coin_id):
-    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
+def get_all_prices():
+    coin_ids = "bitcoin,ethereum,solana,ripple,binancecoin,cardano,polkadot,chainlink,avalanche-2"
+    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_ids}&vs_currencies=usd"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        price = float(data[coin_id]["usd"])
-        print(f"{coin_id} Price fetched: {price}")
-        return price
+        prices = {
+            "bitcoin": float(data.get("bitcoin", {}).get("usd", 0)),
+            "ethereum": float(data.get("ethereum", {}).get("usd", 0)),
+            "solana": float(data.get("solana", {}).get("usd", 0)),
+            "ripple": float(data.get("ripple", {}).get("usd", 0)),
+            "binancecoin": float(data.get("binancecoin", {}).get("usd", 0)),
+            "cardano": float(data.get("cardano", {}).get("usd", 0)),
+            "polkadot": float(data.get("polkadot", {}).get("usd", 0)),
+            "chainlink": float(data.get("chainlink", {}).get("usd", 0)),
+            "avalanche-2": float(data.get("avalanche-2", {}).get("usd", 0))
+        }
+        print(f"All prices fetched: {prices}")
+        return prices
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {coin_id} price: {str(e)}")
-        return 0
+        print(f"Error fetching all prices: {str(e)}")
+        return {coin: 0 for coin in ["bitcoin", "ethereum", "solana", "ripple", "binancecoin", "cardano", "polkadot", "chainlink", "avalanche-2"]}
     except (KeyError, ValueError) as e:
-        print(f"Error parsing {coin_id} price data: {str(e)}")
-        return 0
+        print(f"Error parsing all prices data: {str(e)}")
+        return {coin: 0 for coin in ["bitcoin", "ethereum", "solana", "ripple", "binancecoin", "cardano", "polkadot", "chainlink", "avalanche-2"]}
 
-def get_historical_data(coin_id):
-    # CoinGecko não fornece velas diretamente, usaremos uma estimativa simples
-    price = get_price(coin_id)
+def get_historical_data(coin_id, price):
+    # Estimativa simples baseada no preço atual
     if price > 0:
         support = price * 0.95  # Suporte estimado como 95% do preço atual
         print(f"{coin_id} Support estimated: {support}")
@@ -78,9 +88,12 @@ def home():
     global btc_entry_price, eth_entry_price, sol_entry_price, xrp_entry_price
     global bnb_entry_price, ada_entry_price, dot_entry_price, link_entry_price, avax_entry_price
 
+    # Pegar todos os preços de uma vez
+    prices = get_all_prices()
+
     # BTC/USD
-    btc_price = get_price("bitcoin")
-    btc_data = get_historical_data("bitcoin")
+    btc_price = prices["bitcoin"]
+    btc_data = get_historical_data("bitcoin", btc_price)
     btc_support = min(btc_data["lows"])
     btc_rsi = calculate_rsi(btc_data["closes"])
     btc_volume_avg = np.mean(btc_data["volumes"][-50:])
@@ -105,8 +118,8 @@ def home():
             btc_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # ETH/USD
-    eth_price = get_price("ethereum")
-    eth_data = get_historical_data("ethereum")
+    eth_price = prices["ethereum"]
+    eth_data = get_historical_data("ethereum", eth_price)
     eth_support = min(eth_data["lows"])
     eth_rsi = calculate_rsi(eth_data["closes"])
     eth_volume_avg = np.mean(eth_data["volumes"][-50:])
@@ -131,8 +144,8 @@ def home():
             eth_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # SOL/USD
-    sol_price = get_price("solana")
-    sol_data = get_historical_data("solana")
+    sol_price = prices["solana"]
+    sol_data = get_historical_data("solana", sol_price)
     sol_support = min(sol_data["lows"])
     sol_rsi = calculate_rsi(sol_data["closes"])
     sol_volume_avg = np.mean(sol_data["volumes"][-50:])
@@ -157,8 +170,8 @@ def home():
             sol_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # XRP/USD
-    xrp_price = get_price("ripple")
-    xrp_data = get_historical_data("ripple")
+    xrp_price = prices["ripple"]
+    xrp_data = get_historical_data("ripple", xrp_price)
     xrp_support = min(xrp_data["lows"])
     xrp_rsi = calculate_rsi(xrp_data["closes"])
     xrp_volume_avg = np.mean(xrp_data["volumes"][-50:])
@@ -183,8 +196,8 @@ def home():
             xrp_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # BNB/USD
-    bnb_price = get_price("binancecoin")
-    bnb_data = get_historical_data("binancecoin")
+    bnb_price = prices["binancecoin"]
+    bnb_data = get_historical_data("binancecoin", bnb_price)
     bnb_support = min(bnb_data["lows"])
     bnb_rsi = calculate_rsi(bnb_data["closes"])
     bnb_volume_avg = np.mean(bnb_data["volumes"][-50:])
@@ -209,8 +222,8 @@ def home():
             bnb_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # ADA/USD
-    ada_price = get_price("cardano")
-    ada_data = get_historical_data("cardano")
+    ada_price = prices["cardano"]
+    ada_data = get_historical_data("cardano", ada_price)
     ada_support = min(ada_data["lows"])
     ada_rsi = calculate_rsi(ada_data["closes"])
     ada_volume_avg = np.mean(ada_data["volumes"][-50:])
@@ -235,8 +248,8 @@ def home():
             ada_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # DOT/USD
-    dot_price = get_price("polkadot")
-    dot_data = get_historical_data("polkadot")
+    dot_price = prices["polkadot"]
+    dot_data = get_historical_data("polkadot", dot_price)
     dot_support = min(dot_data["lows"])
     dot_rsi = calculate_rsi(dot_data["closes"])
     dot_volume_avg = np.mean(dot_data["volumes"][-50:])
@@ -261,8 +274,8 @@ def home():
             dot_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # LINK/USD
-    link_price = get_price("chainlink")
-    link_data = get_historical_data("chainlink")
+    link_price = prices["chainlink"]
+    link_data = get_historical_data("chainlink", link_price)
     link_support = min(link_data["lows"])
     link_rsi = calculate_rsi(link_data["closes"])
     link_volume_avg = np.mean(link_data["volumes"][-50:])
@@ -287,8 +300,8 @@ def home():
             link_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # AVAX/USD
-    avax_price = get_price("avalanche-2")
-    avax_data = get_historical_data("avalanche-2")
+    avax_price = prices["avalanche-2"]
+    avax_data = get_historical_data("avalanche-2", avax_price)
     avax_support = min(avax_data["lows"])
     avax_rsi = calculate_rsi(avax_data["closes"])
     avax_volume_avg = np.mean(avax_data["volumes"][-50:])
@@ -335,7 +348,8 @@ def home():
 @app.route('/enter_btc', methods=['POST'])
 def enter_btc_trade():
     global btc_entry_price
-    btc_entry_price = get_price("bitcoin")
+    prices = get_all_prices()
+    btc_entry_price = prices["bitcoin"]
     trades["btc_entry_price"] = btc_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -343,7 +357,8 @@ def enter_btc_trade():
 @app.route('/enter_eth', methods=['POST'])
 def enter_eth_trade():
     global eth_entry_price
-    eth_entry_price = get_price("ethereum")
+    prices = get_all_prices()
+    eth_entry_price = prices["ethereum"]
     trades["eth_entry_price"] = eth_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -351,7 +366,8 @@ def enter_eth_trade():
 @app.route('/enter_sol', methods=['POST'])
 def enter_sol_trade():
     global sol_entry_price
-    sol_entry_price = get_price("solana")
+    prices = get_all_prices()
+    sol_entry_price = prices["solana"]
     trades["sol_entry_price"] = sol_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -359,7 +375,8 @@ def enter_sol_trade():
 @app.route('/enter_xrp', methods=['POST'])
 def enter_xrp_trade():
     global xrp_entry_price
-    xrp_entry_price = get_price("ripple")
+    prices = get_all_prices()
+    xrp_entry_price = prices["ripple"]
     trades["xrp_entry_price"] = xrp_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -367,7 +384,8 @@ def enter_xrp_trade():
 @app.route('/enter_bnb', methods=['POST'])
 def enter_bnb_trade():
     global bnb_entry_price
-    bnb_entry_price = get_price("binancecoin")
+    prices = get_all_prices()
+    bnb_entry_price = prices["binancecoin"]
     trades["bnb_entry_price"] = bnb_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -375,7 +393,8 @@ def enter_bnb_trade():
 @app.route('/enter_ada', methods=['POST'])
 def enter_ada_trade():
     global ada_entry_price
-    ada_entry_price = get_price("cardano")
+    prices = get_all_prices()
+    ada_entry_price = prices["cardano"]
     trades["ada_entry_price"] = ada_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -383,7 +402,8 @@ def enter_ada_trade():
 @app.route('/enter_dot', methods=['POST'])
 def enter_dot_trade():
     global dot_entry_price
-    dot_entry_price = get_price("polkadot")
+    prices = get_all_prices()
+    dot_entry_price = prices["polkadot"]
     trades["dot_entry_price"] = dot_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -391,7 +411,8 @@ def enter_dot_trade():
 @app.route('/enter_link', methods=['POST'])
 def enter_link_trade():
     global link_entry_price
-    link_entry_price = get_price("chainlink")
+    prices = get_all_prices()
+    link_entry_price = prices["chainlink"]
     trades["link_entry_price"] = link_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -399,7 +420,8 @@ def enter_link_trade():
 @app.route('/enter_avax', methods=['POST'])
 def enter_avax_trade():
     global avax_entry_price
-    avax_entry_price = get_price("avalanche-2")
+    prices = get_all_prices()
+    avax_entry_price = prices["avalanche-2"]
     trades["avax_entry_price"] = avax_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
