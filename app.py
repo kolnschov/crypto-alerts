@@ -31,13 +31,17 @@ def load_support_cache(filename, timeout):
         with open(filename, 'r') as f:
             cache = json.load(f)
         if time.time() - cache.get("timestamp", 0) < timeout:
-            return cache.get("supports", {})
+            supports = cache.get("supports", {})
+            print(f"{time.strftime('%H:%M:%S')} - Loaded cached supports from {filename}: {supports}")
+            return supports
+    print(f"{time.strftime('%H:%M:%S')} - No valid cache found for {filename}")
     return None
 
 def save_support_cache(filename, supports):
     cache = {"timestamp": time.time(), "supports": supports}
     with open(filename, 'w') as f:
         json.dump(cache, f)
+    print(f"{time.strftime('%H:%M:%S')} - Saved supports to {filename}: {supports}")
 
 def get_price(pair):
     url = f"https://api.kraken.com/0/public/Ticker?pair={pair}"
@@ -62,12 +66,13 @@ def get_historical_data(pair, interval=5, since=None):
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        data = response.json()["result"][pair]
+        data = response.json()
+        ohlc_data = data["result"][pair]
         limit = 288 if interval == 5 else 168
-        data = data[-limit:] if len(data) > limit else data
-        lows = [float(candle[3]) for candle in data]
-        closes = [float(candle[4]) for candle in data]
-        volumes = [float(candle[5]) for candle in data]
+        ohlc_data = ohlc_data[-limit:] if len(ohlc_data) > limit else ohlc_data
+        lows = [float(candle[3]) for candle in ohlc_data]
+        closes = [float(candle[4]) for candle in ohlc_data]
+        volumes = [float(candle[5]) for candle in ohlc_data]
         support = min(lows)
         print(f"{time.strftime('%H:%M:%S')} - {pair} {interval}min Support fetched: {support}")
         return {"lows": lows, "closes": closes, "volumes": volumes, "support": support}
@@ -94,7 +99,6 @@ def get_all_prices_and_supports():
     # Suportes 5min (24h de velas de 5min)
     if cached_supports_5min:
         supports_5min = cached_supports_5min
-        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (5min): {supports_5min}")
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=5)
@@ -104,13 +108,15 @@ def get_all_prices_and_supports():
     # Suportes 1h (7 dias de velas de 1h)
     if cached_supports_1h:
         supports_1h = cached_supports_1h
-        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (1h): {supports_1h}")
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=60)
             supports_1h[pair] = hist_data["support"]
         save_support_cache(SUPPORT_FILE_1H, supports_1h)
 
+    print(f"{time.strftime('%H:%M:%S')} - Prices: {prices}")
+    print(f"{time.strftime('%H:%M:%S')} - Supports 5min: {supports_5min}")
+    print(f"{time.strftime('%H:%M:%S')} - Supports 1h: {supports_1h}")
     return prices, supports_5min, supports_1h
 
 def calculate_rsi(closes, period=14):
