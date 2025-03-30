@@ -8,10 +8,10 @@ import time
 app = Flask(__name__)
 
 TRADE_FILE = "trades.json"
-CACHE_FILE = "price_cache.json"
-SUPPORT_FILE = "support_cache.json"
-CACHE_TIMEOUT = 300  # Cache de preços por 5 minutos
-SUPPORT_TIMEOUT = 604800  # Recalcular suportes a cada 7 dias
+SUPPORT_FILE_5MIN = "support_cache_5min.json"
+SUPPORT_FILE_1H = "support_cache_1h.json"
+SUPPORT_TIMEOUT_5MIN = 86400  # Recalcular suportes 5min a cada 24 horas
+SUPPORT_TIMEOUT_1H = 604800  # Recalcular suportes 1h a cada 7 dias
 
 def load_trades():
     if os.path.exists(TRADE_FILE):
@@ -26,87 +26,93 @@ def save_trades(trades):
     with open(TRADE_FILE, 'w') as f:
         json.dump(trades, f)
 
-def load_cache():
-    if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, 'r') as f:
+def load_support_cache(filename, timeout):
+    if os.path.exists(filename):
+        with open(filename, 'r') as f:
             cache = json.load(f)
-        if time.time() - cache.get("timestamp", 0) < CACHE_TIMEOUT:
-            return cache.get("prices", {})
-    return None
-
-def save_cache(prices):
-    cache = {"timestamp": time.time(), "prices": prices}
-    with open(CACHE_FILE, 'w') as f:
-        json.dump(cache, f)
-
-def load_support_cache():
-    if os.path.exists(SUPPORT_FILE):
-        with open(SUPPORT_FILE, 'r') as f:
-            cache = json.load(f)
-        if time.time() - cache.get("timestamp", 0) < SUPPORT_TIMEOUT:
+        if time.time() - cache.get("timestamp", 0) < timeout:
             return cache.get("supports", {})
     return None
 
-def save_support_cache(supports):
+def save_support_cache(filename, supports):
     cache = {"timestamp": time.time(), "supports": supports}
-    with open(SUPPORT_FILE, 'w') as f:
+    with open(filename, 'w') as f:
         json.dump(cache, f)
 
-def get_price(symbol):
-    url = f"https://min-api.cryptocompare.com/data/price?fsym={symbol}&tsyms=USDT"
+def get_price(pair):
+    url = f"https://api.kraken.com/0/public/Ticker?pair={pair}"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        price = float(data["USDT"])
-        print(f"{symbol}/USDT Price fetched: {price}")
+        price = float(data["result"][pair]["c"][0])  # Último preço de fechamento
+        print(f"{pair} Price fetched: {price}")
         return price
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {symbol}/USDT price: {str(e)}")
+        print(f"Error fetching {pair} price: {str(e)}")
         return 0
     except (KeyError, ValueError) as e:
-        print(f"Error parsing {symbol}/USDT price data: {str(e)}")
+        print(f"Error parsing {pair} price data: {str(e)}")
         return 0
 
-def get_historical_data(symbol, limit=168):  # 7 dias em 1h
-    url = f"https://min-api.cryptocompare.com/data/v2/histohour?fsym={symbol}&tsym=USDT&limit={limit}"
+def get_historical_data(pair, interval=5, since=None):
+    url = f"https://api.kraken.com/0/public/OHLC?pair={pair}&interval={interval}"
+    if since:
+        url += f"&since={since}"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        data = response.json()["Data"]["Data"]
-        lows = [float(candle["low"]) for candle in data]
-        closes = [float(candle["close"]) for candle in data]
-        volumes = [float(candle["volumeto"]) for candle in data]
-        support = min(lows)  # Mínima dos últimos 7 dias
-        print(f"{symbol}/USDT Support fetched: {support}")
+        data = response.json()["result"][pair]
+        # Pegar últimas 288 velas (5min) ou 168 velas (1h)
+        limit = 288 if interval == 5 else 168
+        data = data[-limit:] if len(data) > limit else data
+        lows = [float(candle[3]) for candle in data]
+        closes = [float(candle[4]) for candle in data]
+        volumes = [float(candle[5]) for candle in data]
+        support = min(lows)
+        print(f"{pair} {interval}min Support fetched: {support}")
         return {"lows": lows, "closes": closes, "volumes": volumes, "support": support}
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching {symbol}/USDT historical data: {str(e)}")
+        print(f"Error fetching {pair} {interval}min historical data: {str(e)}")
         return {"lows": [0], "closes": [0], "volumes": [0], "support": 0}
     except (KeyError, ValueError) as e:
-        print(f"Error parsing {symbol}/USDT historical data: {str(e)}")
+        print(f"Error parsing {pair} {interval}min historical data: {str(e)}")
         return {"lows": [0], "closes": [0], "volumes": [0], "support": 0}
 
 def get_all_prices_and_supports():
-    cached_prices = load_cache()
-    cached_supports = load_support_cache()
+    cached_supports_5min = load_support_cache(SUPPORT_FILE_5MIN, SUPPORT_TIMEOUT_5MIN)
+    cached_supports_1h = load_support_cache(SUPPORT_FILE_1H, SUPPORT_TIMEOUT_1H)
 
-    symbols = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+    pairs = ["XBTUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]  # Kraken usa XBT para BTC
     prices = {}
-    supports = {}
+    supports_5min = {}
+    supports_1h = {}
 
-    if cached_prices and cached_supports:
-        print("Using cached prices and supports:", cached_prices, cached_supports)
-        return cached_prices, cached_supports
+    # Preços em tempo real
+    for pair in pairs:
+        prices[pair] = get_price(pair)
 
-    for symbol in symbols:
-        prices[symbol] = get_price(symbol)
-        hist_data = get_historical_data(symbol)
-        supports[symbol] = hist_data["support"]
+    # Suportes 5min (24h de velas de 5min)
+    if cached_supports_5min:
+        supports_5min = cached_supports_5min
+        print("Using cached supports (5min):", supports_5min)
+    else:
+        for pair in pairs:
+            hist_data = get_historical_data(pair, interval=5)  # 5min, ~24h
+            supports_5min[pair] = hist_data["support"]
+        save_support_cache(SUPPORT_FILE_5MIN, supports_5min)
 
-    save_cache(prices)
-    save_support_cache(supports)
-    return prices, supports
+    # Suportes 1h (7 dias de velas de 1h)
+    if cached_supports_1h:
+        supports_1h = cached_supports_1h
+        print("Using cached supports (1h):", supports_1h)
+    else:
+        for pair in pairs:
+            hist_data = get_historical_data(pair, interval=60)  # 1h, ~7 dias
+            supports_1h[pair] = hist_data["support"]
+        save_support_cache(SUPPORT_FILE_1H, supports_1h)
+
+    return prices, supports_5min, supports_1h
 
 def calculate_rsi(closes, period=14):
     if len(closes) < period + 1:
@@ -132,23 +138,32 @@ xrp_entry_price = trades["xrp_entry_price"]
 def home():
     global btc_entry_price, eth_entry_price, sol_entry_price, bnb_entry_price, xrp_entry_price
 
-    prices, supports = get_all_prices_and_supports()
+    prices, supports_5min, supports_1h = get_all_prices_and_supports()
 
     # BTC/USDT
-    btc_price = prices["BTC"]
-    btc_data = get_historical_data("BTC")
-    btc_support = supports["BTC"]
-    btc_rsi = calculate_rsi(btc_data["closes"])
-    btc_volume_avg = np.mean(btc_data["volumes"][-50:])
-    btc_current_volume = btc_data["volumes"][-1]
+    btc_price = prices["XBTUSDT"]
+    btc_data_5min = get_historical_data("XBTUSDT", interval=5)
+    btc_data_1h = get_historical_data("XBTUSDT", interval=60)
+    btc_support_5min = supports_5min["XBTUSDT"]
+    btc_support_1h = supports_1h["XBTUSDT"]
+    btc_rsi_5min = calculate_rsi(btc_data_5min["closes"])
+    btc_rsi_1h = calculate_rsi(btc_data_1h["closes"])
+    btc_volume_avg_5min = np.mean(btc_data_5min["volumes"][-50:])
+    btc_volume_avg_1h = np.mean(btc_data_1h["volumes"][-50:])
+    btc_current_volume_5min = btc_data_5min["volumes"][-1]
+    btc_current_volume_1h = btc_data_1h["volumes"][-1]
     btc_alert = None
     btc_exit_alert = None
     btc_profit_loss = None
 
-    if (btc_price and btc_support and btc_price <= btc_support * 1.005 and 
-        btc_rsi < 30 and btc_current_volume > btc_volume_avg):
-        btc_alert = f"Entrada: Suporte ${btc_support:.2f}, RSI {btc_rsi:.1f}, Vol > Média"
-        print(f"BTC Alert: Price={btc_price}, Support={btc_support}, RSI={btc_rsi}, Volume={btc_current_volume}, Avg={btc_volume_avg}")
+    if (btc_price and btc_support_5min and btc_price <= btc_support_5min * 1.005 and 
+        btc_rsi_5min < 30 and btc_current_volume_5min > btc_volume_avg_5min):
+        btc_alert = "Alerta de entrada de 5 minutos"
+        print(f"BTC 5min Alert: Price={btc_price}, Support={btc_support_5min}, RSI={btc_rsi_5min}, Volume={btc_current_volume_5min}, Avg={btc_volume_avg_5min}")
+    elif (btc_price and btc_support_1h and btc_price <= btc_support_1h * 1.005 and 
+          btc_rsi_1h < 30 and btc_current_volume_1h > btc_volume_avg_1h):
+        btc_alert = "Alerta de entrada de 1 hora"
+        print(f"BTC 1h Alert: Price={btc_price}, Support={btc_support_1h}, RSI={btc_rsi_1h}, Volume={btc_current_volume_1h}, Avg={btc_volume_avg_1h}")
 
     if btc_entry_price and btc_price:
         btc_profit_loss = ((btc_price - btc_entry_price) / btc_entry_price) * 100
@@ -161,20 +176,29 @@ def home():
             btc_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # ETH/USDT
-    eth_price = prices["ETH"]
-    eth_data = get_historical_data("ETH")
-    eth_support = supports["ETH"]
-    eth_rsi = calculate_rsi(eth_data["closes"])
-    eth_volume_avg = np.mean(eth_data["volumes"][-50:])
-    eth_current_volume = eth_data["volumes"][-1]
+    eth_price = prices["ETHUSDT"]
+    eth_data_5min = get_historical_data("ETHUSDT", interval=5)
+    eth_data_1h = get_historical_data("ETHUSDT", interval=60)
+    eth_support_5min = supports_5min["ETHUSDT"]
+    eth_support_1h = supports_1h["ETHUSDT"]
+    eth_rsi_5min = calculate_rsi(eth_data_5min["closes"])
+    eth_rsi_1h = calculate_rsi(eth_data_1h["closes"])
+    eth_volume_avg_5min = np.mean(eth_data_5min["volumes"][-50:])
+    eth_volume_avg_1h = np.mean(eth_data_1h["volumes"][-50:])
+    eth_current_volume_5min = eth_data_5min["volumes"][-1]
+    eth_current_volume_1h = eth_data_1h["volumes"][-1]
     eth_alert = None
     eth_exit_alert = None
     eth_profit_loss = None
 
-    if (eth_price and eth_support and eth_price <= eth_support * 1.005 and 
-        eth_rsi < 30 and eth_current_volume > eth_volume_avg):
-        eth_alert = f"Entrada: Suporte ${eth_support:.2f}, RSI {eth_rsi:.1f}, Vol > Média"
-        print(f"ETH Alert: Price={eth_price}, Support={eth_support}, RSI={eth_rsi}, Volume={eth_current_volume}, Avg={eth_volume_avg}")
+    if (eth_price and eth_support_5min and eth_price <= eth_support_5min * 1.005 and 
+        eth_rsi_5min < 30 and eth_current_volume_5min > eth_volume_avg_5min):
+        eth_alert = "Alerta de entrada de 5 minutos"
+        print(f"ETH 5min Alert: Price={eth_price}, Support={eth_support_5min}, RSI={eth_rsi_5min}, Volume={eth_current_volume_5min}, Avg={eth_volume_avg_5min}")
+    elif (eth_price and eth_support_1h and eth_price <= eth_support_1h * 1.005 and 
+          eth_rsi_1h < 30 and eth_current_volume_1h > eth_volume_avg_1h):
+        eth_alert = "Alerta de entrada de 1 hora"
+        print(f"ETH 1h Alert: Price={eth_price}, Support={eth_support_1h}, RSI={eth_rsi_1h}, Volume={eth_current_volume_1h}, Avg={eth_volume_avg_1h}")
 
     if eth_entry_price and eth_price:
         eth_profit_loss = ((eth_price - eth_entry_price) / eth_entry_price) * 100
@@ -187,20 +211,29 @@ def home():
             eth_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # SOL/USDT
-    sol_price = prices["SOL"]
-    sol_data = get_historical_data("SOL")
-    sol_support = supports["SOL"]
-    sol_rsi = calculate_rsi(sol_data["closes"])
-    sol_volume_avg = np.mean(sol_data["volumes"][-50:])
-    sol_current_volume = sol_data["volumes"][-1]
+    sol_price = prices["SOLUSDT"]
+    sol_data_5min = get_historical_data("SOLUSDT", interval=5)
+    sol_data_1h = get_historical_data("SOLUSDT", interval=60)
+    sol_support_5min = supports_5min["SOLUSDT"]
+    sol_support_1h = supports_1h["SOLUSDT"]
+    sol_rsi_5min = calculate_rsi(sol_data_5min["closes"])
+    sol_rsi_1h = calculate_rsi(sol_data_1h["closes"])
+    sol_volume_avg_5min = np.mean(sol_data_5min["volumes"][-50:])
+    sol_volume_avg_1h = np.mean(sol_data_1h["volumes"][-50:])
+    sol_current_volume_5min = sol_data_5min["volumes"][-1]
+    sol_current_volume_1h = sol_data_1h["volumes"][-1]
     sol_alert = None
     sol_exit_alert = None
     sol_profit_loss = None
 
-    if (sol_price and sol_support and sol_price <= sol_support * 1.005 and 
-        sol_rsi < 30 and sol_current_volume > sol_volume_avg):
-        sol_alert = f"Entrada: Suporte ${sol_support:.2f}, RSI {sol_rsi:.1f}, Vol > Média"
-        print(f"SOL Alert: Price={sol_price}, Support={sol_support}, RSI={sol_rsi}, Volume={sol_current_volume}, Avg={sol_volume_avg}")
+    if (sol_price and sol_support_5min and sol_price <= sol_support_5min * 1.005 and 
+        sol_rsi_5min < 30 and sol_current_volume_5min > sol_volume_avg_5min):
+        sol_alert = "Alerta de entrada de 5 minutos"
+        print(f"SOL 5min Alert: Price={sol_price}, Support={sol_support_5min}, RSI={sol_rsi_5min}, Volume={sol_current_volume_5min}, Avg={sol_volume_avg_5min}")
+    elif (sol_price and sol_support_1h and sol_price <= sol_support_1h * 1.005 and 
+          sol_rsi_1h < 30 and sol_current_volume_1h > sol_volume_avg_1h):
+        sol_alert = "Alerta de entrada de 1 hora"
+        print(f"SOL 1h Alert: Price={sol_price}, Support={sol_support_1h}, RSI={sol_rsi_1h}, Volume={sol_current_volume_1h}, Avg={sol_volume_avg_1h}")
 
     if sol_entry_price and sol_price:
         sol_profit_loss = ((sol_price - sol_entry_price) / sol_entry_price) * 100
@@ -213,20 +246,29 @@ def home():
             sol_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # BNB/USDT
-    bnb_price = prices["BNB"]
-    bnb_data = get_historical_data("BNB")
-    bnb_support = supports["BNB"]
-    bnb_rsi = calculate_rsi(bnb_data["closes"])
-    bnb_volume_avg = np.mean(bnb_data["volumes"][-50:])
-    bnb_current_volume = bnb_data["volumes"][-1]
+    bnb_price = prices["BNBUSDT"]
+    bnb_data_5min = get_historical_data("BNBUSDT", interval=5)
+    bnb_data_1h = get_historical_data("BNBUSDT", interval=60)
+    bnb_support_5min = supports_5min["BNBUSDT"]
+    bnb_support_1h = supports_1h["BNBUSDT"]
+    bnb_rsi_5min = calculate_rsi(bnb_data_5min["closes"])
+    bnb_rsi_1h = calculate_rsi(bnb_data_1h["closes"])
+    bnb_volume_avg_5min = np.mean(bnb_data_5min["volumes"][-50:])
+    bnb_volume_avg_1h = np.mean(bnb_data_1h["volumes"][-50:])
+    bnb_current_volume_5min = bnb_data_5min["volumes"][-1]
+    bnb_current_volume_1h = bnb_data_1h["volumes"][-1]
     bnb_alert = None
     bnb_exit_alert = None
     bnb_profit_loss = None
 
-    if (bnb_price and bnb_support and bnb_price <= bnb_support * 1.005 and 
-        bnb_rsi < 30 and bnb_current_volume > bnb_volume_avg):
-        bnb_alert = f"Entrada: Suporte ${bnb_support:.2f}, RSI {bnb_rsi:.1f}, Vol > Média"
-        print(f"BNB Alert: Price={bnb_price}, Support={bnb_support}, RSI={bnb_rsi}, Volume={bnb_current_volume}, Avg={bnb_volume_avg}")
+    if (bnb_price and bnb_support_5min and bnb_price <= bnb_support_5min * 1.005 and 
+        bnb_rsi_5min < 30 and bnb_current_volume_5min > bnb_volume_avg_5min):
+        bnb_alert = "Alerta de entrada de 5 minutos"
+        print(f"BNB 5min Alert: Price={bnb_price}, Support={bnb_support_5min}, RSI={bnb_rsi_5min}, Volume={bnb_current_volume_5min}, Avg={bnb_volume_avg_5min}")
+    elif (bnb_price and bnb_support_1h and bnb_price <= bnb_support_1h * 1.005 and 
+          bnb_rsi_1h < 30 and bnb_current_volume_1h > bnb_volume_avg_1h):
+        bnb_alert = "Alerta de entrada de 1 hora"
+        print(f"BNB 1h Alert: Price={bnb_price}, Support={bnb_support_1h}, RSI={bnb_rsi_1h}, Volume={bnb_current_volume_1h}, Avg={bnb_volume_avg_1h}")
 
     if bnb_entry_price and bnb_price:
         bnb_profit_loss = ((bnb_price - bnb_entry_price) / bnb_entry_price) * 100
@@ -239,20 +281,29 @@ def home():
             bnb_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     # XRP/USDT
-    xrp_price = prices["XRP"]
-    xrp_data = get_historical_data("XRP")
-    xrp_support = supports["XRP"]
-    xrp_rsi = calculate_rsi(xrp_data["closes"])
-    xrp_volume_avg = np.mean(xrp_data["volumes"][-50:])
-    xrp_current_volume = xrp_data["volumes"][-1]
+    xrp_price = prices["XRPUSDT"]
+    xrp_data_5min = get_historical_data("XRPUSDT", interval=5)
+    xrp_data_1h = get_historical_data("XRPUSDT", interval=60)
+    xrp_support_5min = supports_5min["XRPUSDT"]
+    xrp_support_1h = supports_1h["XRPUSDT"]
+    xrp_rsi_5min = calculate_rsi(xrp_data_5min["closes"])
+    xrp_rsi_1h = calculate_rsi(xrp_data_1h["closes"])
+    xrp_volume_avg_5min = np.mean(xrp_data_5min["volumes"][-50:])
+    xrp_volume_avg_1h = np.mean(xrp_data_1h["volumes"][-50:])
+    xrp_current_volume_5min = xrp_data_5min["volumes"][-1]
+    xrp_current_volume_1h = xrp_data_1h["volumes"][-1]
     xrp_alert = None
     xrp_exit_alert = None
     xrp_profit_loss = None
 
-    if (xrp_price and xrp_support and xrp_price <= xrp_support * 1.005 and 
-        xrp_rsi < 30 and xrp_current_volume > xrp_volume_avg):
-        xrp_alert = f"Entrada: Suporte ${xrp_support:.2f}, RSI {xrp_rsi:.1f}, Vol > Média"
-        print(f"XRP Alert: Price={xrp_price}, Support={xrp_support}, RSI={xrp_rsi}, Volume={xrp_current_volume}, Avg={xrp_volume_avg}")
+    if (xrp_price and xrp_support_5min and xrp_price <= xrp_support_5min * 1.005 and 
+        xrp_rsi_5min < 30 and xrp_current_volume_5min > xrp_volume_avg_5min):
+        xrp_alert = "Alerta de entrada de 5 minutos"
+        print(f"XRP 5min Alert: Price={xrp_price}, Support={xrp_support_5min}, RSI={xrp_rsi_5min}, Volume={xrp_current_volume_5min}, Avg={xrp_volume_avg_5min}")
+    elif (xrp_price and xrp_support_1h and xrp_price <= xrp_support_1h * 1.005 and 
+          xrp_rsi_1h < 30 and xrp_current_volume_1h > xrp_volume_avg_1h):
+        xrp_alert = "Alerta de entrada de 1 hora"
+        print(f"XRP 1h Alert: Price={xrp_price}, Support={xrp_support_1h}, RSI={xrp_rsi_1h}, Volume={xrp_current_volume_1h}, Avg={xrp_volume_avg_1h}")
 
     if xrp_entry_price and xrp_price:
         xrp_profit_loss = ((xrp_price - xrp_entry_price) / xrp_entry_price) * 100
@@ -265,22 +316,22 @@ def home():
             xrp_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
     return render_template('index.html', 
-                           btc_price=btc_price, btc_support=btc_support, btc_alert=btc_alert, 
+                           btc_price=btc_price, btc_support_5min=btc_support_5min, btc_support_1h=btc_support_1h, btc_alert=btc_alert, 
                            btc_entry_price=btc_entry_price, btc_exit_alert=btc_exit_alert, btc_profit_loss=btc_profit_loss,
-                           eth_price=eth_price, eth_support=eth_support, eth_alert=eth_alert, 
+                           eth_price=eth_price, eth_support_5min=eth_support_5min, eth_support_1h=eth_support_1h, eth_alert=eth_alert, 
                            eth_entry_price=eth_entry_price, eth_exit_alert=eth_exit_alert, eth_profit_loss=eth_profit_loss,
-                           sol_price=sol_price, sol_support=sol_support, sol_alert=sol_alert, 
+                           sol_price=sol_price, sol_support_5min=sol_support_5min, sol_support_1h=sol_support_1h, sol_alert=sol_alert, 
                            sol_entry_price=sol_entry_price, sol_exit_alert=sol_exit_alert, sol_profit_loss=sol_profit_loss,
-                           bnb_price=bnb_price, bnb_support=bnb_support, bnb_alert=bnb_alert, 
+                           bnb_price=bnb_price, bnb_support_5min=bnb_support_5min, bnb_support_1h=bnb_support_1h, bnb_alert=bnb_alert, 
                            bnb_entry_price=bnb_entry_price, bnb_exit_alert=bnb_exit_alert, bnb_profit_loss=bnb_profit_loss,
-                           xrp_price=xrp_price, xrp_support=xrp_support, xrp_alert=xrp_alert, 
+                           xrp_price=xrp_price, xrp_support_5min=xrp_support_5min, xrp_support_1h=xrp_support_1h, xrp_alert=xrp_alert, 
                            xrp_entry_price=xrp_entry_price, xrp_exit_alert=xrp_exit_alert, xrp_profit_loss=xrp_profit_loss)
 
 @app.route('/enter_btc', methods=['POST'])
 def enter_btc_trade():
     global btc_entry_price
-    prices, _ = get_all_prices_and_supports()
-    btc_entry_price = prices["BTC"]
+    prices, _, _ = get_all_prices_and_supports()
+    btc_entry_price = prices["XBTUSDT"]
     trades["btc_entry_price"] = btc_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -288,8 +339,8 @@ def enter_btc_trade():
 @app.route('/enter_eth', methods=['POST'])
 def enter_eth_trade():
     global eth_entry_price
-    prices, _ = get_all_prices_and_supports()
-    eth_entry_price = prices["ETH"]
+    prices, _, _ = get_all_prices_and_supports()
+    eth_entry_price = prices["ETHUSDT"]
     trades["eth_entry_price"] = eth_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -297,8 +348,8 @@ def enter_eth_trade():
 @app.route('/enter_sol', methods=['POST'])
 def enter_sol_trade():
     global sol_entry_price
-    prices, _ = get_all_prices_and_supports()
-    sol_entry_price = prices["SOL"]
+    prices, _, _ = get_all_prices_and_supports()
+    sol_entry_price = prices["SOLUSDT"]
     trades["sol_entry_price"] = sol_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -306,8 +357,8 @@ def enter_sol_trade():
 @app.route('/enter_bnb', methods=['POST'])
 def enter_bnb_trade():
     global bnb_entry_price
-    prices, _ = get_all_prices_and_supports()
-    bnb_entry_price = prices["BNB"]
+    prices, _, _ = get_all_prices_and_supports()
+    bnb_entry_price = prices["BNBUSDT"]
     trades["bnb_entry_price"] = bnb_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -315,8 +366,8 @@ def enter_bnb_trade():
 @app.route('/enter_xrp', methods=['POST'])
 def enter_xrp_trade():
     global xrp_entry_price
-    prices, _ = get_all_prices_and_supports()
-    xrp_entry_price = prices["XRP"]
+    prices, _, _ = get_all_prices_and_supports()
+    xrp_entry_price = prices["XRPUSDT"]
     trades["xrp_entry_price"] = xrp_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
