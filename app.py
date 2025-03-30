@@ -94,7 +94,7 @@ def get_all_prices_and_supports():
     # Suportes 5min (24h de velas de 5min)
     if cached_supports_5min:
         supports_5min = cached_supports_5min
-        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (5min):", supports_5min)
+        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (5min): {supports_5min}")
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=5)
@@ -104,7 +104,7 @@ def get_all_prices_and_supports():
     # Suportes 1h (7 dias de velas de 1h)
     if cached_supports_1h:
         supports_1h = cached_supports_1h
-        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (1h):", supports_1h)
+        print(f"{time.strftime('%H:%M:%S')} - Using cached supports (1h): {supports_1h}")
     else:
         for pair in pairs:
             hist_data = get_historical_data(pair, interval=60)
@@ -285,4 +285,45 @@ def home():
                            eth_entry_price=eth_entry_price, eth_exit_alert=eth_exit_alert, eth_profit_loss=eth_profit_loss,
                            sol_price=sol_price, sol_support_5min=sol_support_5min, sol_support_1h=sol_support_1h, sol_alert=sol_alert, 
                            sol_entry_price=sol_entry_price, sol_exit_alert=sol_exit_alert, sol_profit_loss=sol_profit_loss,
-                           xrp_price=xrp_price, xrp_suppor
+                           xrp_price=xrp_price, xrp_support_5min=xrp_support_5min, xrp_support_1h=xrp_support_1h, xrp_alert=xrp_alert, 
+                           xrp_entry_price=xrp_entry_price, xrp_exit_alert=xrp_exit_alert, xrp_profit_loss=xrp_profit_loss)
+
+@app.route('/enter_btc', methods=['POST'])
+def enter_btc_trade():
+    global btc_entry_price
+    prices, _, _ = get_all_prices_and_supports()
+    btc_entry_price = prices["XBTUSDT"]
+    trades["btc_entry_price"] = btc_entry_price
+    save_trades(trades)
+    return redirect(url_for('home'))
+
+@app.route('/enter_eth', methods=['POST'])
+def enter_eth_trade():
+    global eth_entry_price
+    prices, _, _ = get_all_prices_and_supports()
+    eth_entry_price = prices["ETHUSDT"]
+    trades["eth_entry_price"] = eth_entry_price
+    save_trades(trades)
+    return redirect(url_for('home'))
+
+@app.route('/enter_sol', methods=['POST'])
+def enter_sol_trade():
+    global sol_entry_price
+    prices, _, _ = get_all_prices_and_supports()
+    sol_entry_price = prices["SOLUSDT"]
+    trades["sol_entry_price"] = sol_entry_price
+    save_trades(trades)
+    return redirect(url_for('home'))
+
+@app.route('/enter_xrp', methods=['POST'])
+def enter_xrp_trade():
+    global xrp_entry_price
+    prices, _, _ = get_all_prices_and_supports()
+    xrp_entry_price = prices["XRPUSDT"]
+    trades["xrp_entry_price"] = xrp_entry_price
+    save_trades(trades)
+    return redirect(url_for('home'))
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
