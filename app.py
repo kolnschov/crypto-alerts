@@ -9,7 +9,9 @@ app = Flask(__name__)
 
 TRADE_FILE = "trades.json"
 CACHE_FILE = "price_cache.json"
-CACHE_TIMEOUT = 60  # Cache válido por 60 segundos
+SUPPORT_FILE = "support_cache.json"
+CACHE_TIMEOUT = 300  # Cache de preços por 5 minutos
+SUPPORT_TIMEOUT = 604800  # Recalcular suportes a cada 7 dias
 
 def load_trades():
     if os.path.exists(TRADE_FILE):
@@ -37,43 +39,70 @@ def save_cache(prices):
     with open(CACHE_FILE, 'w') as f:
         json.dump(cache, f)
 
-def get_all_prices():
-    cached_prices = load_cache()
-    if cached_prices:
-        print("Using cached prices:", cached_prices)
-        return cached_prices
+def load_support_cache():
+    if os.path.exists(SUPPORT_FILE):
+        with open(SUPPORT_FILE, 'r') as f:
+            cache = json.load(f)
+        if time.time() - cache.get("timestamp", 0) < SUPPORT_TIMEOUT:
+            return cache.get("supports", {})
+    return None
 
-    coin_ids = "bitcoin,ethereum,solana,binancecoin,ripple"
-    url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_ids}&vs_currencies=usd"
+def save_support_cache(supports):
+    cache = {"timestamp": time.time(), "supports": supports}
+    with open(SUPPORT_FILE, 'w') as f:
+        json.dump(cache, f)
+
+def get_price(pair):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={pair}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/134.0.0.0"}
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
-        prices = {
-            "bitcoin": float(data.get("bitcoin", {}).get("usd", 0)),
-            "ethereum": float(data.get("ethereum", {}).get("usd", 0)),
-            "solana": float(data.get("solana", {}).get("usd", 0)),
-            "binancecoin": float(data.get("binancecoin", {}).get("usd", 0)),
-            "ripple": float(data.get("ripple", {}).get("usd", 0))
-        }
-        print(f"All prices fetched: {prices}")
-        save_cache(prices)
-        return prices
+        price = float(data["price"])
+        print(f"{pair} Price fetched: {price}")
+        return price
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching all prices: {str(e)}")
-        return {coin: 0 for coin in ["bitcoin", "ethereum", "solana", "binancecoin", "ripple"]}
-    except (KeyError, ValueError) as e:
-        print(f"Error parsing all prices data: {str(e)}")
-        return {coin: 0 for coin in ["bitcoin", "ethereum", "solana", "binancecoin", "ripple"]}
+        print(f"Error fetching {pair} price: {str(e)}")
+        return 0
 
-def get_historical_data(coin_id, price):
-    if price > 0:
-        support = price * 0.95
-        print(f"{coin_id} Support estimated: {support}")
-        return {"lows": [support], "closes": [price], "volumes": [1000]}
-    else:
-        print(f"No price data for {coin_id}, returning default")
-        return {"lows": [0], "closes": [0], "volumes": [0]}
+def get_historical_data(pair, interval="1h", limit=168):  # 7 dias em 1h
+    url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval={interval}&limit={limit}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/134.0.0.0"}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        lows = [float(candle[3]) for candle in data]
+        closes = [float(candle[4]) for candle in data]
+        volumes = [float(candle[5]) for candle in data]
+        support = min(lows)  # Mínima dos últimos 7 dias
+        print(f"{pair} Support fetched: {support}")
+        return {"lows": lows, "closes": closes, "volumes": volumes, "support": support}
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching {pair} historical data: {str(e)}")
+        return {"lows": [0], "closes": [0], "volumes": [0], "support": 0}
+
+def get_all_prices_and_supports():
+    cached_prices = load_cache()
+    cached_supports = load_support_cache()
+
+    pairs = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+    prices = {}
+    supports = {}
+
+    if cached_prices and cached_supports:
+        print("Using cached prices and supports:", cached_prices, cached_supports)
+        return cached_prices, cached_supports
+
+    for pair in pairs:
+        prices[pair] = get_price(pair)
+        hist_data = get_historical_data(pair)
+        supports[pair] = hist_data["support"]
+
+    save_cache(prices)
+    save_support_cache(supports)
+    return prices, supports
 
 def calculate_rsi(closes, period=14):
     if len(closes) < period + 1:
@@ -99,12 +128,12 @@ xrp_entry_price = trades["xrp_entry_price"]
 def home():
     global btc_entry_price, eth_entry_price, sol_entry_price, bnb_entry_price, xrp_entry_price
 
-    prices = get_all_prices()
+    prices, supports = get_all_prices_and_supports()
 
-    # BTC/USD
-    btc_price = prices["bitcoin"]
-    btc_data = get_historical_data("bitcoin", btc_price)
-    btc_support = min(btc_data["lows"])
+    # BTC/USDT
+    btc_price = prices["BTCUSDT"]
+    btc_data = get_historical_data("BTCUSDT")
+    btc_support = supports["BTCUSDT"]
     btc_rsi = calculate_rsi(btc_data["closes"])
     btc_volume_avg = np.mean(btc_data["volumes"][-50:])
     btc_current_volume = btc_data["volumes"][-1]
@@ -127,10 +156,10 @@ def home():
         elif btc_price >= profit_5:
             btc_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
-    # ETH/USD
-    eth_price = prices["ethereum"]
-    eth_data = get_historical_data("ethereum", eth_price)
-    eth_support = min(eth_data["lows"])
+    # ETH/USDT
+    eth_price = prices["ETHUSDT"]
+    eth_data = get_historical_data("ETHUSDT")
+    eth_support = supports["ETHUSDT"]
     eth_rsi = calculate_rsi(eth_data["closes"])
     eth_volume_avg = np.mean(eth_data["volumes"][-50:])
     eth_current_volume = eth_data["volumes"][-1]
@@ -153,10 +182,10 @@ def home():
         elif eth_price >= profit_5:
             eth_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
-    # SOL/USD
-    sol_price = prices["solana"]
-    sol_data = get_historical_data("solana", sol_price)
-    sol_support = min(sol_data["lows"])
+    # SOL/USDT
+    sol_price = prices["SOLUSDT"]
+    sol_data = get_historical_data("SOLUSDT")
+    sol_support = supports["SOLUSDT"]
     sol_rsi = calculate_rsi(sol_data["closes"])
     sol_volume_avg = np.mean(sol_data["volumes"][-50:])
     sol_current_volume = sol_data["volumes"][-1]
@@ -179,10 +208,10 @@ def home():
         elif sol_price >= profit_5:
             sol_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
-    # BNB/USD
-    bnb_price = prices["binancecoin"]
-    bnb_data = get_historical_data("binancecoin", bnb_price)
-    bnb_support = min(bnb_data["lows"])
+    # BNB/USDT
+    bnb_price = prices["BNBUSDT"]
+    bnb_data = get_historical_data("BNBUSDT")
+    bnb_support = supports["BNBUSDT"]
     bnb_rsi = calculate_rsi(bnb_data["closes"])
     bnb_volume_avg = np.mean(bnb_data["volumes"][-50:])
     bnb_current_volume = bnb_data["volumes"][-1]
@@ -205,10 +234,10 @@ def home():
         elif bnb_price >= profit_5:
             bnb_exit_alert = f"Saída com 5% de lucro: Venda em ${profit_5:.2f}"
 
-    # XRP/USD
-    xrp_price = prices["ripple"]
-    xrp_data = get_historical_data("ripple", xrp_price)
-    xrp_support = min(xrp_data["lows"])
+    # XRP/USDT
+    xrp_price = prices["XRPUSDT"]
+    xrp_data = get_historical_data("XRPUSDT")
+    xrp_support = supports["XRPUSDT"]
     xrp_rsi = calculate_rsi(xrp_data["closes"])
     xrp_volume_avg = np.mean(xrp_data["volumes"][-50:])
     xrp_current_volume = xrp_data["volumes"][-1]
@@ -246,8 +275,8 @@ def home():
 @app.route('/enter_btc', methods=['POST'])
 def enter_btc_trade():
     global btc_entry_price
-    prices = get_all_prices()
-    btc_entry_price = prices["bitcoin"]
+    prices, _ = get_all_prices_and_supports()
+    btc_entry_price = prices["BTCUSDT"]
     trades["btc_entry_price"] = btc_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -255,8 +284,8 @@ def enter_btc_trade():
 @app.route('/enter_eth', methods=['POST'])
 def enter_eth_trade():
     global eth_entry_price
-    prices = get_all_prices()
-    eth_entry_price = prices["ethereum"]
+    prices, _ = get_all_prices_and_supports()
+    eth_entry_price = prices["ETHUSDT"]
     trades["eth_entry_price"] = eth_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -264,8 +293,8 @@ def enter_eth_trade():
 @app.route('/enter_sol', methods=['POST'])
 def enter_sol_trade():
     global sol_entry_price
-    prices = get_all_prices()
-    sol_entry_price = prices["solana"]
+    prices, _ = get_all_prices_and_supports()
+    sol_entry_price = prices["SOLUSDT"]
     trades["sol_entry_price"] = sol_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -273,8 +302,8 @@ def enter_sol_trade():
 @app.route('/enter_bnb', methods=['POST'])
 def enter_bnb_trade():
     global bnb_entry_price
-    prices = get_all_prices()
-    bnb_entry_price = prices["binancecoin"]
+    prices, _ = get_all_prices_and_supports()
+    bnb_entry_price = prices["BNBUSDT"]
     trades["bnb_entry_price"] = bnb_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
@@ -282,8 +311,8 @@ def enter_bnb_trade():
 @app.route('/enter_xrp', methods=['POST'])
 def enter_xrp_trade():
     global xrp_entry_price
-    prices = get_all_prices()
-    xrp_entry_price = prices["ripple"]
+    prices, _ = get_all_prices_and_supports()
+    xrp_entry_price = prices["XRPUSDT"]
     trades["xrp_entry_price"] = xrp_entry_price
     save_trades(trades)
     return redirect(url_for('home'))
